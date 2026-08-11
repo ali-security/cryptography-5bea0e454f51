@@ -5,8 +5,14 @@ runs:
   using: "composite"
 
   steps:
-    - uses: actions/checkout@v3.5.2
+    - uses: actions/checkout@v4
       with:
         repository: "google/wycheproof"
         path: "wycheproof"
-        ref: "master"
+        # google/wycheproof restructured its layout and the legacy
+        # `testvectors/` directory is gone from the default branch (main), so a
+        # checkout of main leaves the suite dying on
+        # FileNotFoundError: 'wycheproof/testvectors/x25519_test.json'.
+        # This is the long-standing canonical pin, contemporary with the
+        # 41.0.7 era, and it still ships `testvectors/`.
+        ref: "d9f6ec7d8bd8c96da05368999094e4a75ba5cb3d"

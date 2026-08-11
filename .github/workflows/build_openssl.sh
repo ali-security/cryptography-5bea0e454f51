@@ -20,9 +20,20 @@ if [[ "${TYPE}" == "openssl" ]]; then
     pushd openssl
     git checkout "${VERSION}"
   else
-    curl -O "https://www.openssl.org/source/openssl-${VERSION}.tar.gz"
-    tar zxf "openssl-${VERSION}.tar.gz"
-    pushd "openssl-${VERSION}"
+    # www.openssl.org/source/ now answers with a small redirect stub instead of
+    # the tarball (the old `curl -O` saved that stub and `tar zxf` then failed
+    # with "gzip: stdin: not in gzip format"), so fetch from GitHub instead.
+    # `--strip-components` into a fixed directory keeps the extracted path
+    # deterministic across the two different upstream archive layouts.
+    mkdir -p openssl-src
+    if [[ "${VERSION}" =~ ^3\. ]]; then
+      URL="https://github.com/openssl/openssl/releases/download/openssl-${VERSION}/openssl-${VERSION}.tar.gz"
+    else
+      URL="https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_${VERSION//./_}.tar.gz"
+    fi
+    curl -fsSL -o openssl.tar.gz "$URL"
+    tar zxf openssl.tar.gz -C openssl-src --strip-components=1
+    pushd openssl-src
   fi
   # For OpenSSL 3 we need to call this before config
   if [[ "${VERSION}" =~ ^3. ]] || [[ "${VERSION}" =~ ^[0-9a-f]{40}$ ]]; then
@@ -57,7 +68,9 @@ if [[ "${TYPE}" == "openssl" ]]; then
   fi
   popd
 elif [[ "${TYPE}" == "libressl" ]]; then
-  curl -O "https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-${VERSION}.tar.gz"
+  # -fsSL: follow redirects and fail loudly on an HTTP error instead of saving
+  # the error page and failing later inside tar.
+  curl -fsSL -O "https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-${VERSION}.tar.gz"
   tar zxf "libressl-${VERSION}.tar.gz"
   pushd "libressl-${VERSION}"
   ./config -Wl -Wl,-Bsymbolic-functions -fPIC shared --prefix="${OSSL_PATH}"
